@@ -22,15 +22,23 @@ const App: React.FC = () => {
   const initialStartDate = format(new Date(), 'yyyy-MM-dd');
   const initialEndDate = format(addDays(new Date(), 13), 'yyyy-MM-dd');
 
-  // Даты сохраняем, чтобы пользователь не вводил их заново
   const [startDate, setStartDate] = useState<string>(() => localStorage.getItem('shift_designer_start_date') || initialStartDate);
   const [endDate, setEndDate] = useState<string>(() => localStorage.getItem('shift_designer_end_date') || initialEndDate);
   
   const [currentPage, setCurrentPage] = useState<number>(0);
   
-  // Инициализируем график и банк сотрудников пустыми значениями для "чистой" загрузки без аватарок
+  // График всегда пустой при загрузке (по требованию "без аватарок")
   const [schedule, setSchedule] = useState<ScheduleData>({});
-  const [savedEmployees, setSavedEmployees] = useState<Employee[]>([]);
+  
+  // База (библиотека) сотрудников теперь загружается из localStorage
+  const [savedEmployees, setSavedEmployees] = useState<Employee[]>(() => {
+    try {
+      const saved = localStorage.getItem('shift_designer_employee_bank');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   const [editingCell, setEditingCell] = useState<{ date: string; shift: ShiftType } | null>(null);
   const [showAvatarEditor, setShowAvatarEditor] = useState<boolean>(false);
@@ -39,15 +47,16 @@ const App: React.FC = () => {
   const captureRef = useRef<HTMLDivElement>(null);
   const lastWheelTime = useRef<number>(0);
 
-  // Сохраняем в localStorage только настройки дат
+  // Сохраняем даты и библиотеку сотрудников
   useEffect(() => {
     try {
       localStorage.setItem('shift_designer_start_date', startDate);
       localStorage.setItem('shift_designer_end_date', endDate);
+      localStorage.setItem('shift_designer_employee_bank', JSON.stringify(savedEmployees));
     } catch (e) {
-      console.warn('LocalStorage unavailable:', e);
+      console.warn('LocalStorage quota exceeded or unavailable:', e);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, savedEmployees]);
 
   const startObj = useMemo(() => {
     const d = parseISO(startDate);
@@ -65,6 +74,10 @@ const App: React.FC = () => {
   }, [startObj, endObj]);
 
   const getCellEmployees = (date: string, shift: ShiftType): Employee[] => schedule[`${date}_${shift}`] || [];
+
+  const removeEmployeeFromBank = (id: string) => {
+    setSavedEmployees(prev => prev.filter(emp => emp.id !== id));
+  };
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     const now = Date.now();
@@ -358,26 +371,36 @@ const App: React.FC = () => {
               {savedEmployees.length > 0 && (
                 <div className="space-y-4 pt-6 border-t border-slate-100">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">Из архива</h3>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-4">
                     {savedEmployees.map((emp) => (
-                      <button 
-                        key={emp.id} 
-                        onClick={() => {
-                          const current = getCellEmployees(editingCell.date, editingCell.shift);
-                          setSchedule(prev => ({ ...prev, [`${editingCell.date}_${editingCell.shift}`]: [...current, { ...emp, id: Math.random().toString(36).substr(2, 9) }] }));
-                        }} 
-                        className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 bg-white relative hover:scale-110 hover:shadow-lg transition-all active:scale-95"
-                      >
-                        <img 
-                          src={emp.avatarUrl} 
-                          className="absolute max-w-none left-0 top-0 block pointer-events-none" 
-                          style={{ 
-                            width: 'auto',
-                            transform: `translate(${(emp.position?.x || 0) * (48/256)}px, ${(emp.position?.y || 0) * (48/256)}px) scale(${(emp.scale || 1) * (48/256)})`, 
-                            transformOrigin: '0 0' 
+                      <div key={emp.id} className="relative group animate-in zoom-in-50 duration-200">
+                        <button 
+                          onClick={() => {
+                            const current = getCellEmployees(editingCell.date, editingCell.shift);
+                            setSchedule(prev => ({ ...prev, [`${editingCell.date}_${editingCell.shift}`]: [...current, { ...emp, id: Math.random().toString(36).substr(2, 9) }] }));
                           }} 
-                        />
-                      </button>
+                          className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 bg-white relative hover:scale-110 hover:shadow-lg transition-all active:scale-95"
+                        >
+                          <img 
+                            src={emp.avatarUrl} 
+                            className="absolute max-w-none left-0 top-0 block pointer-events-none" 
+                            style={{ 
+                              width: 'auto',
+                              transform: `translate(${(emp.position?.x || 0) * (48/256)}px, ${(emp.position?.y || 0) * (48/256)}px) scale(${(emp.scale || 1) * (48/256)})`, 
+                              transformOrigin: '0 0' 
+                            }} 
+                          />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeEmployeeFromBank(emp.id);
+                          }}
+                          className="absolute -top-1 -right-1 w-4 h-4 bg-slate-900 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md hover:bg-red-600"
+                        >
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -399,8 +422,14 @@ const App: React.FC = () => {
                 if (!editingCell) return;
                 const current = getCellEmployees(editingCell.date, editingCell.shift);
                 const newEmp = { id: Math.random().toString(36).substr(2, 9), name: 'Сотрудник', ...data };
+                // Добавляем в текущую ячейку
                 setSchedule(prev => ({ ...prev, [`${editingCell.date}_${editingCell.shift}`]: [...current, newEmp] }));
-                setSavedEmployees(prev => [newEmp, ...prev.filter(e => e.avatarUrl !== newEmp.avatarUrl)].slice(0, 15));
+                // Сохраняем в банк (библиотеку) навсегда
+                setSavedEmployees(prev => {
+                  // Предотвращаем дубликаты по URL аватара
+                  const filtered = prev.filter(e => e.avatarUrl !== newEmp.avatarUrl);
+                  return [newEmp, ...filtered].slice(0, 30); // Храним до 30 последних аватаров
+                });
                 setShowAvatarEditor(false);
               }} 
               onCancel={() => setShowAvatarEditor(false)} 
