@@ -22,21 +22,15 @@ const App: React.FC = () => {
   const initialStartDate = format(new Date(), 'yyyy-MM-dd');
   const initialEndDate = format(addDays(new Date(), 13), 'yyyy-MM-dd');
 
+  // Даты сохраняем, чтобы пользователь не вводил их заново
   const [startDate, setStartDate] = useState<string>(() => localStorage.getItem('shift_designer_start_date') || initialStartDate);
   const [endDate, setEndDate] = useState<string>(() => localStorage.getItem('shift_designer_end_date') || initialEndDate);
+  
   const [currentPage, setCurrentPage] = useState<number>(0);
-  const [schedule, setSchedule] = useState<ScheduleData>(() => {
-    try {
-      const saved = localStorage.getItem('shift_designer_schedule');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) { return {}; }
-  });
-  const [savedEmployees, setSavedEmployees] = useState<Employee[]>(() => {
-    try {
-      const saved = localStorage.getItem('shift_designer_employee_bank');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
+  
+  // Инициализируем график и банк сотрудников пустыми значениями для "чистой" загрузки без аватарок
+  const [schedule, setSchedule] = useState<ScheduleData>({});
+  const [savedEmployees, setSavedEmployees] = useState<Employee[]>([]);
 
   const [editingCell, setEditingCell] = useState<{ date: string; shift: ShiftType } | null>(null);
   const [showAvatarEditor, setShowAvatarEditor] = useState<boolean>(false);
@@ -45,16 +39,15 @@ const App: React.FC = () => {
   const captureRef = useRef<HTMLDivElement>(null);
   const lastWheelTime = useRef<number>(0);
 
+  // Сохраняем в localStorage только настройки дат
   useEffect(() => {
     try {
       localStorage.setItem('shift_designer_start_date', startDate);
       localStorage.setItem('shift_designer_end_date', endDate);
-      localStorage.setItem('shift_designer_schedule', JSON.stringify(schedule));
-      localStorage.setItem('shift_designer_employee_bank', JSON.stringify(savedEmployees));
     } catch (e) {
-      console.warn('LocalStorage quota exceeded or unavailable:', e);
+      console.warn('LocalStorage unavailable:', e);
     }
-  }, [startDate, endDate, schedule, savedEmployees]);
+  }, [startDate, endDate]);
 
   const startObj = useMemo(() => {
     const d = parseISO(startDate);
@@ -93,8 +86,6 @@ const App: React.FC = () => {
 
   const handleExportPDF = async () => {
     setPdfStatus({ active: true, progress: 0, text: 'Подготовка экспорта...' });
-    
-    // Ожидаем шрифты для корректной отрисовки кириллицы
     await document.fonts.ready;
 
     const doc = new jsPDF({
@@ -116,12 +107,11 @@ const App: React.FC = () => {
       });
 
       setCurrentPage(pageIdx); 
-      // Даем время на перерисовку DOM
       await new Promise(r => setTimeout(r, 600)); 
 
       if (captureRef.current) {
         const canvas = await html2canvas(captureRef.current, {
-          scale: 3, // Высокое разрешение для Illustrator
+          scale: 3,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
@@ -130,7 +120,6 @@ const App: React.FC = () => {
         
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
         if (i > 0) doc.addPage('a3', 'landscape');
-        // A3: 420x297mm
         doc.addImage(imgData, 'JPEG', 0, 0, 420, 297, undefined, 'FAST');
       }
     }
