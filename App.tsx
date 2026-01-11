@@ -94,6 +94,7 @@ const App: React.FC = () => {
   const handleExportPDF = async () => {
     setPdfStatus({ active: true, progress: 0, text: 'Подготовка экспорта...' });
     
+    // Ожидаем шрифты для корректной отрисовки кириллицы
     await document.fonts.ready;
 
     const doc = new jsPDF({
@@ -103,40 +104,40 @@ const App: React.FC = () => {
       compress: true
     });
 
-    const pagesToExport = Array.from({ length: totalSheets }).map((_, i) => i);
     const originalPage = currentPage;
+    const pagesToExport = Array.from({ length: totalSheets }).map((_, i) => i);
 
     for (let i = 0; i < pagesToExport.length; i++) {
       const pageIdx = pagesToExport[i];
       setPdfStatus({ 
         active: true, 
-        progress: Math.round(((i) / pagesToExport.length) * 100), 
+        progress: Math.round((i / pagesToExport.length) * 100), 
         text: `Обработка страницы ${i + 1} из ${pagesToExport.length}...` 
       });
 
       setCurrentPage(pageIdx); 
-      await new Promise(r => setTimeout(r, 1500)); 
+      // Даем время на перерисовку DOM
+      await new Promise(r => setTimeout(r, 600)); 
 
       if (captureRef.current) {
         const canvas = await html2canvas(captureRef.current, {
-          scale: 3,
+          scale: 3, // Высокое разрешение для Illustrator
           useCORS: true,
-          logging: false,
           allowTaint: true,
           backgroundColor: '#ffffff',
-          imageTimeout: 20000,
+          logging: false
         });
         
-        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         if (i > 0) doc.addPage('a3', 'landscape');
-        doc.addImage(imgData, 'JPEG', 0, 0, 420, 297, undefined, 'SLOW');
+        // A3: 420x297mm
+        doc.addImage(imgData, 'JPEG', 0, 0, 420, 297, undefined, 'FAST');
       }
     }
 
     setCurrentPage(originalPage);
     setPdfStatus({ active: true, progress: 100, text: 'Скачивание...' });
-    const filename = `График_Смен_A3_Все_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
-    doc.save(filename);
+    doc.save(`График_A3_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
     
     setTimeout(() => setPdfStatus({ active: false, progress: 0, text: '' }), 1000);
   };
@@ -148,10 +149,10 @@ const App: React.FC = () => {
 
     return (
       <div 
-        className={`bg-white w-[1587px] h-[1123px] flex flex-col page-break relative capture-container-inner ${isCapture ? 'p-10' : 'p-10 shadow-2xl border border-slate-300'}`}
+        className={`bg-white w-[1587px] h-[1123px] flex flex-col relative ${isCapture ? 'p-10' : 'p-10 shadow-2xl border border-slate-300'}`}
         style={{ boxSizing: 'border-box' }}
       >
-        <div className={`flex-1 flex flex-col gap-4`}>
+        <div className="flex-1 flex flex-col gap-4">
           {weeks.map((weekIdx) => {
             const weekStart = addWeeks(sheetStartMonday, weekIdx);
             return (
@@ -170,12 +171,12 @@ const App: React.FC = () => {
                         style={{ backgroundColor: isOutsideRange ? '#f1f5f9' : bgColor }}
                         className={`border-r border-b border-slate-300 text-white flex flex-col items-center justify-center h-full overflow-hidden ${isWknd ? 'flex-[0.45]' : 'flex-1'}`}
                       >
-                        <div className="flex flex-col items-center justify-center leading-normal">
-                          <span className={`text-[9px] uppercase font-bold tracking-[0.2em] leading-[1.2] block text-center mb-0.5 ${isOutsideRange ? 'text-slate-400' : 'opacity-70'}`}>
+                        <div className="flex flex-col items-center justify-center leading-tight">
+                          <span className={`text-[9px] uppercase font-bold tracking-[0.2em] mb-0.5 ${isOutsideRange ? 'text-slate-400' : 'opacity-70'}`}>
                             {WEEK_DAYS[i]}
                           </span>
                           {!isOutsideRange && (
-                            <span className="text-2xl font-[700] leading-[1.1] block text-center">
+                            <span className="text-2xl font-[800]">
                               {format(day, 'dd.MM')}
                             </span>
                           )}
@@ -192,7 +193,7 @@ const App: React.FC = () => {
                         {shift.icon ? <span className="text-3xl">{shift.icon}</span> : (
                           <>
                             <span className={`${shift.label === 'выходной' ? 'text-[9px]' : 'text-xl'} font-bold text-slate-800 uppercase`}>{shift.label}</span>
-                            {shift.timeRange && <pre className="text-[9px] text-slate-600 font-bold leading-tight mt-1 uppercase">{shift.timeRange}</pre>}
+                            {shift.timeRange && <pre className="text-[9px] text-slate-600 font-bold leading-tight mt-1 uppercase font-sans">{shift.timeRange}</pre>}
                           </>
                         )}
                       </div>
@@ -235,8 +236,8 @@ const App: React.FC = () => {
             );
           })}
         </div>
-        <div className={`absolute bottom-4 left-10 text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] ${isCapture ? 'left-16 bottom-6' : ''}`}>
-           График работы с {format(startObj, 'dd.MM.yyyy')} по {format(endObj, 'dd.MM.yyyy')} / {sheetIndex + 1}
+        <div className="absolute bottom-4 left-10 text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+           График работы с {format(startObj, 'dd.MM.yyyy')} по {format(endObj, 'dd.MM.yyyy')} / Лист {sheetIndex + 1}
         </div>
       </div>
     );
@@ -282,7 +283,7 @@ const App: React.FC = () => {
           </div>
           <button onClick={handleExportPDF} className="bg-red-600 hover:bg-red-700 text-white px-10 py-4 rounded-xl font-bold uppercase text-[11px] tracking-[0.1em] transition-all shadow-xl shadow-red-950/20 active:scale-95 flex items-center gap-3">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-            Экспорт в PDF
+            Экспорт PDF (A3)
           </button>
         </div>
       </div>
@@ -297,7 +298,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Hidden Capture Area for Export */}
+      {/* Hidden Capture Area */}
       <div className="capture-container" ref={captureRef}>
         {renderSheet(currentPage, true)}
       </div>

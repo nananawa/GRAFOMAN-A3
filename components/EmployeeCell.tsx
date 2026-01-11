@@ -11,7 +11,7 @@ interface EmployeeCellProps {
   label?: string;
 }
 
-const EmployeeCell: React.FC<EmployeeCellProps> = ({ 
+const EmployeeCell: React.FC = ({ 
   employees, 
   color, 
   isWeekend, 
@@ -38,20 +38,19 @@ const EmployeeCell: React.FC<EmployeeCellProps> = ({
       )}
 
       <div 
-        className="relative z-10 flex flex-wrap gap-1 justify-center content-center items-center p-1.5 w-full h-full max-h-full overflow-hidden"
-        style={{ maxWidth: isWeekend ? '110px' : '265px' }}
+        className="relative z-10 flex flex-wrap gap-0.5 justify-center content-center items-center p-1 w-full h-full max-h-full overflow-hidden"
       >
         {employees.map((emp) => (
           <div 
             key={emp.id} 
-            className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-sm bg-white relative shrink-0"
+            className="w-[42px] h-[42px] rounded-full overflow-hidden border-2 border-white shadow-sm bg-white relative shrink-0"
           >
             <img 
               src={emp.avatarUrl} 
               className="absolute max-w-none left-0 top-0 block pointer-events-none" 
               style={{ 
                 width: 'auto',
-                transform: `translate(${(emp.position?.x || 0) * (48/256)}px, ${(emp.position?.y || 0) * (48/256)}px) scale(${(emp.scale || 1) * (48/256)})`,
+                transform: `translate(${(emp.position?.x || 0) * (42/256)}px, ${(emp.position?.y || 0) * (42/256)}px) scale(${(emp.scale || 1) * (42/256)})`,
                 transformOrigin: '0 0'
               }}
             />
