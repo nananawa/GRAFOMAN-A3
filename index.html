@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ГРАФОМАН А3 - Графики работы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Montserrat', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+      html, body, #root, * {
+        font-family: 'Montserrat', sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        background-color: #f3f4f6;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+
+      /* Контейнер для захвата html2canvas (скрыт от пользователя) */
+      .capture-container {
+        position: fixed;
+        left: -9999px;
+        top: -9999px;
+        width: 1587px;
+        height: 1123px;
+        z-index: -100;
+        pointer-events: none;
+      }
+
+      @media print {
+        .no-print { display: none !important; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "date-fns/": "https://esm.sh/date-fns@^4.1.0/",
+    "date-fns": "https://esm.sh/date-fns@^4.1.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
